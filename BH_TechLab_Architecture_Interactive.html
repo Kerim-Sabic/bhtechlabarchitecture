@@ -314,6 +314,9 @@ svg.focused .aedge:not(.lit),svg.focused .aarrow:not(.lit){opacity:.05}
 .ap-part button{font-family:'Archivo',sans-serif;font-weight:700;font-size:11px;background:var(--accentS);
   border:1px solid var(--accentL);color:var(--accent);padding:6px 11px;border-radius:9px;cursor:pointer;transition:.15s}
 .ap-part button:hover{background:var(--accent);color:#fff}
+.ap-clear{position:absolute;top:14px;right:14px;font-family:'Archivo',sans-serif;font-weight:700;font-size:11px;
+  background:var(--paper2);color:var(--soft);border:1px solid var(--line);border-radius:8px;padding:4px 9px;cursor:pointer;transition:.15s}
+.ap-clear:hover{background:var(--danger);color:#fff;border-color:var(--danger)}
 .arch-panel .ap-empty{color:var(--faint);font-style:italic;font-size:14px;line-height:1.6}
 
 /* ---------- upgraded sync player ---------- */
@@ -615,7 +618,10 @@ svg.focused .aedge:not(.lit),svg.focused .aarrow:not(.lit){opacity:.05}
 .modal{position:fixed;inset:0;z-index:460;background:rgba(18,39,63,.42);display:none;align-items:center;justify-content:center;padding:20px}
 .modal.open{display:flex}
 .sheet{background:#fff;border-radius:18px;width:min(520px,100%);max-height:88vh;overflow:auto;box-shadow:0 30px 70px rgba(18,39,63,.3);
-  padding:26px;animation:sheetin .25s cubic-bezier(.2,.7,.3,1)}
+  padding:26px;animation:sheetin .25s cubic-bezier(.2,.7,.3,1);position:relative}
+.sheetx{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:1px solid var(--line);
+  background:var(--paper2);color:var(--soft);font-size:18px;line-height:1;cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;z-index:2}
+.sheetx:hover{background:var(--danger);color:#fff;border-color:var(--danger)}
 @keyframes sheetin{from{transform:translateY(18px) scale(.98);opacity:0}to{transform:none;opacity:1}}
 .sheet h3{font-size:20px;margin-bottom:3px}
 .sheet .shsub{color:var(--faint);font-size:13px;font-style:italic;margin-bottom:18px}
@@ -1213,9 +1219,11 @@ if(HAS_IO){
     g.addEventListener("mouseleave",function(){ state.hover=null; render(); });
     g.addEventListener("focus",function(){ state.hover=n.id; render(); });
     g.addEventListener("blur",function(){ state.hover=null; render(); });
-    g.addEventListener("click",function(){ selectNode(n.id); });
+    g.addEventListener("click",function(ev){ ev.stopPropagation(); selectNode(n.id); });
     g.addEventListener("keydown",function(ev){ if(ev.key==="Enter"||ev.key===" "){ ev.preventDefault(); selectNode(n.id); } });
   });
+  // clicking empty diagram space (background, a band or an edge) clears the selection
+  svg.addEventListener("click",function(){ if(state.selected){ clearSelection(); } });
 
   var state={concern:"overview", hover:null, selected:null};
 
@@ -1255,6 +1263,7 @@ if(HAS_IO){
     var chips=p.tech.map(function(t){return '<span class="ap-chip">'+t+"</span>";}).join("");
     var parts=(p.part||[]).map(function(s){return '<button data-go="'+s+'">'+PART[s]+"</button>";}).join("");
     panel.innerHTML =
+      '<button class="ap-clear" id="apClear" title="Clear selection (Esc)">&times; clear</button>'+
       '<div class="ap-eyebrow '+eye+'"><span class="ed"></span>'+n.tl+"</div>"+
       "<h3>"+n.label.replace(" · source of truth","")+"</h3>"+
       '<div class="ap-sub">'+(n.sub||"system of record")+"</div>"+
@@ -1266,6 +1275,7 @@ if(HAS_IO){
     panel.querySelectorAll("[data-go]").forEach(function(b){
       b.addEventListener("click",function(){ smooth($(b.dataset.go)); });
     });
+    var cl=$("apClear"); if(cl) cl.addEventListener("click",function(ev){ ev.stopPropagation(); clearSelection(); });
   }
   function defaultPanel(){
     panel.innerHTML =
@@ -1274,17 +1284,26 @@ if(HAS_IO){
       '<div class="ap-sub">20 components across four tiers — plus SAP, the source of truth.</div>'+
       '<p class="ap-empty">Hover any node to trace the paths that touch it. Click (or focus with Tab, then Enter) for its responsibility, stack, security posture and scaling behaviour. Use the overlays above to re-read the same map as data flow, security boundaries, tenant isolation, or failure / offline paths.</p>';
   }
-  function selectNode(id){ state.selected=id; openPanel(id); FX.open(); render(); }
+  function selectNode(id){ if(state.selected===id){ clearSelection(); return; } state.selected=id; openPanel(id); FX.open(); render(); }
+  function clearSelection(){ state.selected=null; state.hover=null; defaultPanel(); FX.tick(); render(); }
 
   document.querySelectorAll(".concern-btn").forEach(function(b){
     b.addEventListener("click",function(){
       FX.tick();
+      var c=b.dataset.c;
+      if(state.concern===c && c!=="overview") c="overview"; // re-click an active overlay to turn it off
       document.querySelectorAll(".concern-btn").forEach(function(x){x.classList.remove("active");});
-      b.classList.add("active"); state.concern=b.dataset.c; render();
+      var btn=document.querySelector('.concern-btn[data-c="'+c+'"]'); if(btn) btn.classList.add("active");
+      state.concern=c; render();
     });
   });
-  // Esc clears selection
-  document.addEventListener("keydown",function(e){ if(e.key==="Escape"){ state.selected=null; state.hover=null; defaultPanel(); render(); } });
+  // Esc clears selection / overlay
+  document.addEventListener("keydown",function(e){ if(e.key==="Escape" && (state.selected||state.concern!=="overview")){
+    state.selected=null; state.hover=null;
+    if(state.concern!=="overview"){ state.concern="overview";
+      document.querySelectorAll(".concern-btn").forEach(function(x){x.classList.remove("active");});
+      var ov=document.querySelector('.concern-btn[data-c="overview"]'); if(ov) ov.classList.add("active"); }
+    defaultPanel(); render(); } });
 
   defaultPanel(); render();
 })();
@@ -1350,7 +1369,7 @@ if(HAS_IO){
       {t:"3 · Queue the pending batch",note:"badge shows 1 pending",why:"Still only on the device — if it dies right now, the event survives in the encrypted outbox.",state:"safe",seg:seg(1,2,Y[2]),color:TEAL,cursor:0,outbox:1},
       {t:"4 · POST /sync (batch + UUIDs)",note:"Idempotency-Key header",why:"Because the request carries idempotency keys, the server can safely receive it more than once.",state:"info",seg:seg(2,3,Y[3]),color:GOLD,cursor:0,outbox:1},
       {t:"5 · Upsert if UUID unseen → commit",note:"dedupe on UUID",why:"First time this UUID is seen, so it commits exactly once and advances the server cursor.",state:"info",seg:seg(3,4,Y[4]),color:GOLD,cursor:1,outbox:1},
-      {t:"6 · 200 ACK + server cursor",note:"now safe to clear outbox",why:"Only after the ACK does the device clear the event — never before. No loss, no duplicate.",state:"safe",seg:seg(4,2,Y[5]),color:NAVY,cursor:1,outbox:0}
+      {t:"6 · 200 ACK + server cursor",note:"now safe to clear outbox",why:"Only after the ACK does the device clear the event — never before. No loss, no duplicate.",state:"safe",seg:seg(3,2,Y[5]),color:NAVY,cursor:1,outbox:0}
      ]},
     {id:"battery",name:"Battery dies mid-capture",tag:"B",desc:"<b>The device powers off</b> between capturing and syncing. Because the event was persisted first, nothing is lost.",
      steps:[
@@ -1364,7 +1383,7 @@ if(HAS_IO){
      steps:[
       {t:"1 · Capture event (UUID abc)",note:"queued for sync",why:"One logical action, one stable UUID — the key the server will dedupe on.",state:"safe",seg:seg(0,1,Y[0]),color:TEAL,cursor:0,outbox:1},
       {t:"2 · POST /sync → commit",note:"UUID abc committed",why:"The server commits the event and advances its cursor.",state:"info",seg:seg(2,4,Y[2]),color:GOLD,cursor:1,outbox:1},
-      {t:"3 · ACK lost on the way back",note:"client never hears 200",why:"The commit succeeded, but the client doesn't know that — so it must retry.",state:"warn",seg:seg(4,2,Y[3]),color:RED,mode:"drop",aux:["drop"],cursor:1,outbox:1},
+      {t:"3 · ACK lost on the way back",note:"client never hears 200",why:"The commit succeeded, but the client doesn't know that — so it must retry.",state:"warn",seg:seg(3,2,Y[3]),color:RED,mode:"drop",aux:["drop"],cursor:1,outbox:1},
       {t:"4 · Client retries (same UUID abc)",note:"identical Idempotency-Key",why:"The retry carries the very same UUID, not a new one.",state:"info",seg:seg(2,3,Y[4]),color:GOLD,cursor:1,outbox:1},
       {t:"5 · Server sees UUID abc → ignores",note:"no second row written",why:"Idempotency means the retry is a no-op. There is no double count.",state:"safe",at:{x:lx(3),y:Y[4]},color:TEAL,aux:["dup"],cursor:1,outbox:1},
       {t:"6 · ACK delivered → clear outbox",note:"exactly-once achieved",why:"One action, one row, finally acknowledged. Duplicates are structurally impossible.",state:"safe",seg:seg(3,2,Y[5]),color:NAVY,cursor:1,outbox:0}
@@ -1376,7 +1395,7 @@ if(HAS_IO){
       {t:"3 · Commit e1, e2 — then drop",note:"cursor = 2; e3 in-flight lost",why:"Two events are committed and the cursor records that. The connection then fails.",state:"warn",seg:seg(3,4,Y[2]),color:RED,mode:"drop",aux:["drop"],cursor:2,outbox:1},
       {t:"4 · Reconnect → GET cursor",note:"server replies: cursor = 2",why:"The resume point is authoritative — no guessing which events landed.",state:"info",seg:seg(2,3,Y[3]),color:NAVY,cursor:2,outbox:1},
       {t:"5 · Resume: send e3 only",note:"not e1 / e2 again",why:"Resume is exact: committed events are never re-sent, and e3 is not skipped.",state:"safe",seg:seg(3,4,Y[4]),color:GOLD,cursor:3,outbox:0},
-      {t:"6 · Batch durable + acknowledged",note:"3 of 3 committed once",why:"All three events committed exactly once across a broken connection.",state:"safe",seg:seg(4,2,Y[5]),color:NAVY,cursor:3,outbox:0}
+      {t:"6 · Batch durable + acknowledged",note:"3 of 3 committed once",why:"All three events committed exactly once across a broken connection.",state:"safe",seg:seg(3,2,Y[5]),color:NAVY,cursor:3,outbox:0}
      ]},
     {id:"conflict",name:"Two commissions, one asset",tag:"E",desc:"<b>Two teams edit the same asset offline.</b> Neither write is silently dropped — both events are preserved and the clash goes to the Conflict Inbox for a human.",
      steps:[
@@ -1951,7 +1970,7 @@ if(HAS_IO){
     {grp:"Reconcile & review"},
     {id:"reconcile",label:"Reconciliation",icon:"⚖",roles:["admin","president","accountant","auditor"]},
     {id:"conflicts",label:"Conflict Inbox",icon:"⚑",roles:["admin","president"],count:function(){return store.conflicts.length;}},
-    {id:"approvals",label:"Approvals",icon:"✔",roles:["admin","accountant"],count:function(){return finPending().length;}},
+    {id:"approvals",label:"Approvals",icon:"✔",roles:["admin","accountant","president"],count:function(){return finPending().length+reviewPending().length;}},
     {grp:"Integration & output"},
     {id:"erp",label:"ERP posting",icon:"⇅",roles:["admin","accountant"],count:function(){return candidates().length;}},
     {id:"reports",label:"Reports",icon:"⎙",roles:ALL},
@@ -2009,8 +2028,9 @@ if(HAS_IO){
   function evsFor(id){ return store.events.filter(function(e){ return e.synced && e.assetId===id; }); }
   function pending(){ return store.events.filter(function(e){ return !e.synced; }); }
   function finPending(){ return store.dispositions.filter(function(d){ return DISP[d.disp].risk==="fin" && d.status==="pending"; }); }
-  function candidates(){ return store.dispositions.filter(function(d){ return d.status==="approved" && !d.posted; }); }
-  function notif(){ return store.conflicts.length + finPending().length; }
+  function reviewPending(){ return store.dispositions.filter(function(d){ return d.disp==="METADATA" && d.status==="pending"; }); }
+  function candidates(){ return store.dispositions.filter(function(d){ return DISP[d.disp].risk==="fin" && d.status==="approved" && !d.posted; }); }
+  function notif(){ return store.conflicts.length + finPending().length + reviewPending().length; }
   function canSee(id){ var it=navItem(id); return it && it.roles && it.roles.indexOf(store.role)>=0; }
   function navItem(id){ for(var i=0;i<NAV.length;i++) if(NAV[i].id===id) return NAV[i]; return null; }
   function capStatusOf(a){ var e=evsFor(a.id); if(!e.length) return "pending"; var nf=e.some(function(x){return x.status==="notfound";}); return nf?"notfound":"found"; }
@@ -2041,7 +2061,7 @@ if(HAS_IO){
   /* ===================== SCREENS ===================== */
   function loopStrip(){
     var steps=[["Setup",true],["Field",pending().length||store.synced],["Sync",store.synced],
-      ["Reconcile",store.reconciled],["Review",store.reconciled&&!store.conflicts.length&&!finPending().length],
+      ["Reconcile",store.reconciled],["Review",store.reconciled&&!store.conflicts.length&&!finPending().length&&!reviewPending().length],
       ["Return",store.postings.length>0]];
     var cur=steps.findIndex(function(s){return !s[1];});
     return '<div class="loop">'+steps.map(function(s,i){
@@ -2061,6 +2081,7 @@ if(HAS_IO){
     if(store.synced && !store.reconciled && canSee("reconcile")) actions.push(btn("nav","reconcile","Run reconciliation","pri"));
     if(conf>0 && canSee("conflicts")) actions.push(btn("nav","conflicts","Resolve "+conf+" conflict(s)","gd"));
     if(fin>0 && canSee("approvals")) actions.push(btn("nav","approvals","Review "+fin+" financial exception(s)","dg"));
+    if(reviewPending().length>0 && canSee("approvals")) actions.push(btn("nav","approvals","Approve "+reviewPending().length+" metadata change(s)","gd"));
     if(cand>0 && canSee("erp")) actions.push(btn("nav","erp","Post "+cand+" candidate(s) to SAP","nv"));
     actions.push(btn("nav","reports","Generate a report",""));
     var welcome = (!store.synced) ? note("ok","◆","<b>Welcome — this is a working simulation.</b> Try the full value loop: open <b>Field capture</b> → <b>Fill sample captures</b> → <b>Sync</b> → run <b>Reconciliation</b> → clear the <b>Conflict Inbox</b> and <b>Approvals</b> → <b>Post to SAP</b>. Every action writes to the Audit log; switch <b>Role</b> (top-right) to see permissions change.") : "";
@@ -2170,23 +2191,32 @@ if(HAS_IO){
 
   function renderApprovals(){
     if(!canSee("approvals")) return denied();
-    var items=finPending();
-    if(!items.length) return head("Approvals — finance gate","Financial exceptions need a human with finance authority. Nothing posts to SAP without this step.")
-      + emptyState("✔","Nothing awaiting approval","Shortages, surpluses and value changes appear here after reconciliation.");
-    var cards=items.map(function(d){
-      var sameUser=(d.by===actorName());
-      return '<div class="panel2"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><h3 style="margin:0">'+(d.tag)+' · '+d.name+'</h3>'+dchip(d.disp)+'</div>'+
+    var fin=finPending(), rev=reviewPending();
+    if(!fin.length && !rev.length) return head("Approvals & review","Exceptions and non-financial changes pass a human before anything returns to SAP.")
+      + emptyState("✔","Nothing awaiting a decision","Financial exceptions and metadata changes appear here after reconciliation. Run reconciliation first if you haven’t.");
+    var canFin=(store.role==="accountant"||store.role==="admin"), canRev=(store.role==="president"||store.role==="admin");
+    function card(d,kind){
+      var allowed=kind==="fin"?canFin:canRev, sameUser=(d.by===actorName()), blocked=sameUser||!allowed;
+      var why=sameUser?'<span style="color:var(--danger)">blocked — capturer ≠ approver</span>'
+        :(!allowed?'<span style="color:var(--danger)">needs '+(kind==="fin"?"finance":"review")+' authority — switch role</span>':actorName()+' may approve');
+      var label=kind==="fin"?"Approve → posting candidate":"Approve → update master data";
+      return '<div class="panel2"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><h3 style="margin:0">'+d.tag+' · '+d.name+'</h3>'+dchip(d.disp)+'</div>'+
         '<div class="psub" style="margin-top:6px">'+d.detail+'</div>'+
         (d.was!=null?'<div class="kv2"><span class="k">Book value</span><span class="v was">'+money(d.was)+'</span></div>':'')+
         (d.amount!=null?'<div class="kv2"><span class="k">'+(d.disp==="VALUE"?"Recorded value":"Financial exposure")+'</span><span class="v">'+money(d.amount)+'</span></div>':'')+
         '<div class="kv2"><span class="k">Captured by</span><span class="v">'+d.by+'</span></div>'+
-        '<div class="kv2"><span class="k">Separation of duties</span><span class="v">'+(sameUser?'<span style="color:var(--danger)">blocked — capturer ≠ approver</span>':actorName()+' may approve')+'</span></div>'+
-        '<div style="margin-top:14px;display:flex;gap:10px"><button class="btn2 pri" data-act="approve" data-id="'+d.id+'"'+(sameUser?" disabled":"")+'>Approve → posting candidate</button>'+btn("reject",d.id,"Reject","")+'</div>'+
+        '<div class="kv2"><span class="k">'+(kind==="fin"?"Separation of duties":"Authority")+'</span><span class="v">'+why+'</span></div>'+
+        '<div style="margin-top:14px;display:flex;gap:10px"><button class="btn2 pri" data-act="approve" data-id="'+d.id+'"'+(blocked?" disabled":"")+'>'+label+'</button>'+btn("reject",d.id,"Reject","")+'</div>'+
         '</div>';
-    }).join("");
-    return head("Approvals — finance gate","Approving creates an ERP <b>posting candidate</b> — it still requires a human to post. Approving never writes to SAP.")
-      + note("fin","●","These have financial impact. A different person from the one who captured must approve (separation of duties).")
-      + cards;
+    }
+    var html=head("Approvals & review","The human gate. Financial exceptions need finance authority; metadata changes need review. Approving never writes to SAP automatically.");
+    if(fin.length){ html+='<div style="margin:6px 0 10px;font-family:\'Archivo\',sans-serif;font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--danger)">Financial — finance gate</div>'
+      + note("fin","●","Financial impact. A different person from the one who captured must approve (separation of duties). Approving creates a posting candidate — it still needs a human to post.")
+      + fin.map(function(d){return card(d,"fin");}).join(""); }
+    if(rev.length){ html+='<div style="margin:18px 0 10px;font-family:\'Archivo\',sans-serif;font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--warn)">Non-financial — review</div>'
+      + note("warn","◆","Metadata changes (room, custodian). On approval the SAP master data is updated after review — no financial posting involved.")
+      + rev.map(function(d){return card(d,"rev");}).join(""); }
+    return html;
   }
 
   function renderErp(){
@@ -2263,11 +2293,12 @@ if(HAS_IO){
   function buildTop(){
     var roleOpts=ALL.map(function(r){ return '<option value="'+r+'"'+(store.role===r?" selected":"")+'>'+ROLES[r].name+'</option>'; }).join("");
     var nb=notif()? '<span class="nbadge">'+notif()+'</span>':'';
+    var bell=(store.conflicts.length&&canSee("conflicts"))?"conflicts":(canSee("approvals")?"approvals":(canSee("conflicts")?"conflicts":"dashboard"));
     appTop.innerHTML='<button class="tbtn appmenu" data-act="togglenav" aria-label="Menu">☰</button>'
       +'<div class="alogo"><div class="adot"></div>Horalix Inventory</div>'
       +'<div class="ctx">tenant: '+store.tenant+'</div><div class="ctx">FY '+store.fy+'</div>'
       +'<div class="grow"></div>'
-      +'<button class="tbtn" data-act="nav" data-id="'+(store.conflicts.length?"conflicts":"approvals")+'" title="Items needing attention"><span class="bell">🔔'+nb+'</span></button>'
+      +'<button class="tbtn" data-act="nav" data-id="'+bell+'" title="Items needing attention"><span class="bell">🔔'+nb+'</span></button>'
       +'<div class="rolewrap"><span class="roLabel">Role</span><select id="roleSel">'+roleOpts+'</select></div>'
       +'<button class="tbtn" data-act="exit">✕ Exit</button>';
   }
@@ -2301,6 +2332,8 @@ if(HAS_IO){
       note:o.note||"",photo:!!o.photo,synced:false});
   }
   function fillSample(){
+    if(store.events.some(function(e){return e.by==="Commission A"||e.by==="Commission B"||e.by==="Commission C";})){
+      FX.warn(); toast("Sample captures are already loaded","warn"); return; }
     // realistic spread incl. metadata, value, 2 shortages, duplicate, conflict, surplus
     var A=assetById;
     createEvent({assetId:"BH-AST-1001",status:"found",room:A("BH-AST-1001").room,custodian:A("BH-AST-1001").custodian,value:4200,by:"Commission A"});
@@ -2336,7 +2369,7 @@ if(HAS_IO){
     o.status=d.risk==="safe"?"closed":"pending"; store.dispositions.push(o); }
   function runRecon(){
     if(!store.synced){ toast("Sync the outbox first","warn"); return; }
-    store.dispositions=[]; store.conflicts=[];
+    store.dispositions=[]; store.conflicts=[]; store.postings=[];  // re-run regenerates from scratch
     var by={};
     store.events.filter(function(e){return e.synced;}).forEach(function(e){
       var key=e.assetId||("SURPLUS:"+e.tag); (by[key]=by[key]||[]).push(e);
@@ -2364,10 +2397,14 @@ if(HAS_IO){
     toast("Reconciliation complete","ok");
   }
 
+  /* every sheet gets a visible close (✕) on top of Cancel/Esc/backdrop */
+  function openSheet(html){ sheet.innerHTML='<button class="sheetx" data-act="closemodal" aria-label="Close" title="Close (Esc)">&times;</button>'+html; openModal(); FX.open(); }
+
   /* capture modal */
   function captureForm(a){
     var s=capDraft.status;
-    return '<h3>'+a.icon+' '+a.name+'</h3><div class="shsub">'+a.id+' · book: '+a.loc+' · '+a.room+' · '+money(a.bookValue)+'</div>'
+    return '<button class="sheetx" data-act="closemodal" aria-label="Close" title="Close (Esc)">&times;</button>'
+      +'<h3>'+a.icon+' '+a.name+'</h3><div class="shsub">'+a.id+' · book: '+a.loc+' · '+a.room+' · '+money(a.bookValue)+'</div>'
       +'<div class="field"><label>Count result</label><div class="segbtns">'
         +'<button class="found'+(s==="found"?" on":"")+'" data-act="capstatus" data-id="found">✓ Found</button>'
         +'<button class="notfound'+(s==="notfound"?" on":"")+'" data-act="capstatus" data-id="notfound">✕ Not found</button>'
@@ -2386,17 +2423,19 @@ if(HAS_IO){
   function openCapture(id){
     if(!canSee("field")) return;
     var a=assetById(id); if(!a) return;
-    capDraft={assetId:id,status:"found",room:a.room,custodian:a.custodian,value:a.bookValue,note:"",photo:false};
+    var ev=store.events.filter(function(e){return e.assetId===id;}), last=ev[ev.length-1];
+    capDraft= last ? {assetId:id,status:last.status,room:last.room,custodian:last.custodian,value:last.value,note:last.note||"",photo:!!last.photo}
+                   : {assetId:id,status:"found",room:a.room,custodian:a.custodian,value:a.bookValue,note:"",photo:false};
     sheet.innerHTML=captureForm(a); openModal(); FX.open();
   }
   function openSurplus(){
+    if(!canSee("field")) return;
     capDraft={assetId:null,status:"surplus",tag:"BH-AST-S"+(Math.floor(Math.random()*89)+10),name:"",room:"",custodian:"",value:0,note:"",photo:false};
-    sheet.innerHTML='<h3>Add a surplus asset</h3><div class="shsub">Found in the field with no book record — flagged for finance.</div>'
+    openSheet('<h3>Add a surplus asset</h3><div class="shsub">Found in the field with no book record — flagged for finance.</div>'
       +'<div class="field"><label>Asset name</label><input id="surName" placeholder="e.g. Split AC Unit"></div>'
       +'<div class="field"><label>Location</label><input id="surLoc" placeholder="e.g. Mostar Hub"></div>'
       +'<div class="field"><label>Estimated value (KM)</label><input id="surVal" type="number" value="0"></div>'
-      +'<div class="sheet-foot">'+btn("closemodal","","Cancel","")+btn("sursave","","Add to outbox","pri")+'</div>';
-    openModal(); FX.open();
+      +'<div class="sheet-foot">'+btn("closemodal","","Cancel","")+btn("sursave","","Add to outbox","pri")+'</div>');
   }
 
   function download(name,text,mime){
@@ -2512,13 +2551,12 @@ if(HAS_IO){
     var a=assetById(id); if(!a) return; var evs=evsFor(id), d=dispFor(id);
     var ev=evs.length? evs.map(function(e){ return '<div class="kv2"><span class="k">'+e.by+' · '+e.statusLabel+'</span><span class="v" style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">'+e.id+'</span></div>'+
       '<div style="font-size:12px;color:var(--faint);margin:-4px 0 8px">room '+e.room+' · '+e.custodian+' · '+money(e.value||0)+'</div>'; }).join("") : emptyMini("No captures yet.");
-    sheet.innerHTML='<h3>'+a.icon+' '+a.name+'</h3><div class="shsub">'+a.id+' · '+a.loc+'</div>'
+    openSheet('<h3>'+a.icon+' '+a.name+'</h3><div class="shsub">'+a.id+' · '+a.loc+'</div>'
       +'<div class="kv2"><span class="k">Book value (SAP)</span><span class="v">'+money(a.bookValue)+'</span></div>'
       +'<div class="kv2"><span class="k">Book custodian</span><span class="v">'+a.custodian+'</span></div>'
       +'<div class="kv2"><span class="k">Disposition</span><span class="v">'+(d?DISP[d.disp].label:"—")+'</span></div>'
-      +'<div style="margin:14px 0 6px;font-family:Archivo;font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)">Capture events (immutable)</div>'+ev
-      +'<div class="sheet-foot">'+btn("closemodal","","Close","pri")+'</div>';
-    openModal();
+      +'<div style="margin:14px 0 6px;font-family:\'Archivo\',sans-serif;font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)">Capture events (immutable)</div>'+ev
+      +'<div class="sheet-foot">'+btn("closemodal","","Close","pri")+'</div>');
   }
   function resolveConflict(assetId,opt){
     var ci=-1; for(var i=0;i<store.conflicts.length;i++) if(store.conflicts[i].assetId===assetId) ci=i;
@@ -2532,14 +2570,21 @@ if(HAS_IO){
   function approve(id){
     var d=findDisp(id); if(!d) return;
     if(d.by===actorName()){ FX.error(); toast("Separation of duties: the capturer can’t approve","fin"); return; }
-    d.status="approved"; audit("approval.approved",DISP[d.disp].label+" on "+d.tag+" approved → ERP posting candidate (not yet posted)",{});
-    FX.commit(); toast("Approved → posting candidate created","ok"); render();
+    var risk=DISP[d.disp].risk;
+    if(risk==="fin"){
+      if(store.role!=="accountant"&&store.role!=="admin"){ FX.error(); toast("Finance authority required — switch role","fin"); return; }
+      d.status="approved"; audit("approval.approved",DISP[d.disp].label+" on "+d.tag+" approved → ERP posting candidate (not yet posted)",{});
+      FX.commit(); toast("Approved → posting candidate created","ok"); render(); return;
+    }
+    // metadata review
+    if(store.role!=="president"&&store.role!=="admin"){ FX.error(); toast("Review authority required — switch role","warn"); return; }
+    d.status="closed"; audit("metadata.approved",DISP[d.disp].label+" on "+d.tag+" approved → SAP master data updated after review",{});
+    FX.commit(); toast("Master-data update approved","ok"); render();
   }
   function openReject(id){
-    sheet.innerHTML='<h3>Reject exception</h3><div class="shsub">A reason is recorded in the audit log.</div>'
+    openSheet('<h3>Reject exception</h3><div class="shsub">A reason is recorded in the audit log.</div>'
       +'<div class="field"><label>Reason</label><textarea id="rejReason" placeholder="Why is this rejected?"></textarea></div>'
-      +'<div class="sheet-foot">'+btn("closemodal","","Cancel","")+btn("rejectsave",id,"Reject","dg")+'</div>';
-    openModal();
+      +'<div class="sheet-foot">'+btn("closemodal","","Cancel","")+btn("rejectsave",id,"Reject","dg")+'</div>');
   }
   function doReject(id,reason){
     var d=findDisp(id); if(!d) return; d.status="rejected"; d.reason=reason;
