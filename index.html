@@ -357,6 +357,44 @@ svg.focused .aedge:not(.lit),svg.focused .aarrow:not(.lit){opacity:.05}
 .lane-box{transition:.25s}
 .svc-tag{font-family:'IBM Plex Mono',monospace}
 
+/* ---- redesigned sync: sequence diagram + step timeline ---- */
+.syncgrid{display:grid;grid-template-columns:1.1fr .9fr;border-top:1px solid var(--line)}
+@media(max-width:880px){.syncgrid{grid-template-columns:1fr}}
+.syncstage{background:#0E1B2C;padding:16px 14px 10px;min-width:0}
+.syncstage svg{width:100%;height:auto;display:block}
+.synckey{display:flex;flex-wrap:wrap;gap:7px 16px;padding:12px 6px 4px}
+.synckey .sk{display:inline-flex;align-items:center;gap:7px;font-family:'Archivo',sans-serif;font-size:11px;color:#9FB0C4}
+.synckey .sk i{width:11px;height:11px;border-radius:3px;display:block;flex:none}
+.syncsteps{padding:12px 12px;background:#fff;max-height:600px;overflow:auto}
+@media(max-width:880px){.syncsteps{border-top:1px solid var(--line);max-height:none}}
+@media(min-width:881px){.syncsteps{border-left:1px solid var(--line)}}
+.sstep{display:grid;grid-template-columns:30px 1fr;gap:12px;width:100%;text-align:left;background:none;border:none;
+  border-radius:12px;padding:10px 12px;cursor:pointer;transition:.15s;align-items:start}
+.sstep:hover{background:var(--paper2)}
+.sstep .sn{width:28px;height:28px;border-radius:50%;background:var(--paper2);color:var(--faint);font-family:'Archivo',sans-serif;
+  font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;transition:.2s;flex:none}
+.sstep.done .sn{background:var(--accentS);color:var(--accent)}
+.sstep.active .sn{background:var(--accent);color:#fff;box-shadow:0 0 0 4px var(--accentS)}
+.sstep.active.fail .sn{background:var(--danger);box-shadow:0 0 0 4px var(--dangerS)}
+.sstep.done.fail .sn{background:var(--dangerS);color:var(--danger)}
+.sstep .st{font-family:'Archivo',sans-serif;font-weight:700;font-size:13.5px;color:var(--soft);line-height:1.32;padding-top:4px}
+.sstep.active .st,.sstep:hover .st{color:var(--navy)}
+.sstep .sbody{grid-column:2;overflow:hidden;max-height:0;opacity:0;transition:max-height .4s ease,opacity .3s}
+.sstep.active .sbody{max-height:340px;opacity:1;margin-top:8px}
+.sstep .sd{font-size:13px;color:var(--soft);line-height:1.55}
+.sstep .swy{display:flex;gap:8px;margin-top:9px;font-size:12.5px;color:#0E4438;background:var(--accentS);border:1px solid var(--accentL);
+  border-radius:9px;padding:9px 11px;line-height:1.45}
+.sstep .swy b{font-family:'Archivo',sans-serif}
+.sstep.fail .swy{color:#7A2D22;background:var(--dangerS);border-color:#E6C3BB}
+.sstep .sbadges{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap}
+.sbadge{font-family:'IBM Plex Mono',monospace;font-size:10.5px;border-radius:7px;padding:3px 9px;border:1px solid var(--line);color:var(--navy2);background:var(--paper)}
+.sbadge.chg{border-color:var(--accentL);background:var(--accentS);color:var(--accent);font-weight:700}
+.sbadge.fin{border-color:#E6C3BB;background:var(--dangerS);color:var(--danger)}
+.sq-name{font-family:'Archivo',sans-serif;font-weight:700;font-size:10.5px;fill:#fff}
+.sq-sub{font-family:'IBM Plex Mono',monospace;font-size:8px;fill:#A8D2C6}
+.sq-msg{font-family:'Archivo',sans-serif;font-weight:700;font-size:10px}
+.sq-tok{font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:700;fill:#0E1B2C}
+
 /* ---------- reconciliation explorer ---------- */
 .recon{margin-top:18px;border:1px solid var(--line);border-radius:18px;background:#fff;
   box-shadow:0 12px 36px rgba(18,39,63,.07);overflow:hidden}
@@ -759,18 +797,27 @@ svg.focused .aedge:not(.lit),svg.focused .aarrow:not(.lit){opacity:.05}
 <section id="sync"><div class="wrap">
   <div class="sec-kick reveal">Animated protocol · five scenarios</div>
   <h2 class="big reveal">The offline sync engine, step by step</h2>
-  <p class="lead reveal">This is the protocol behind &ldquo;never waits, never loses.&rdquo; Pick a scenario &mdash; including the failure cases &mdash; and scrub through it. The readout explains, at every step, <em>why no action is ever lost or duplicated</em>.</p>
+  <p class="lead reveal">This is the protocol behind &ldquo;never waits, never loses.&rdquo; Pick a scenario &mdash; including the failure cases &mdash; and step through it. <strong>Each step is a single message</strong> between the app, the encrypted outbox, the sync client, the server and the database. The panel on the right explains, in plain language, what happens and <em>why no action is ever lost or duplicated</em>.</p>
   <div class="player reveal">
     <div class="scenarios" id="scenarios" role="tablist" aria-label="Sync scenario"></div>
     <div class="scn-desc" id="scnDesc"></div>
-    <div class="player-stage">
-      <svg id="syncSvg" viewBox="0 0 960 360" font-family="Archivo, sans-serif" role="img" aria-label="Animated sync protocol timeline">
-        <g id="lanes"></g>
-        <g id="trail"></g>
-        <g id="aux"></g>
-        <circle id="packet" class="s-packet" cx="120" cy="110" r="10" fill="#7FD4BE" opacity="0"/>
-        <circle id="packet2" class="s-packet" cx="120" cy="110" r="10" fill="#E0C98A" opacity="0"/>
-      </svg>
+    <div class="syncgrid">
+      <div class="syncstage">
+        <svg id="syncSvg" viewBox="0 0 560 540" font-family="Archivo, sans-serif" role="img" aria-label="Sync protocol sequence diagram">
+          <g id="sqActors"></g>
+          <g id="sqMsgs"></g>
+          <g id="sqAux"></g>
+          <g id="packet" opacity="0"><rect x="-20" y="-11" width="40" height="22" rx="11" fill="#7FD4BE"/><text class="sq-tok" x="0" y="3.5" text-anchor="middle">evt</text></g>
+          <g id="packet2" opacity="0"><rect x="-20" y="-11" width="40" height="22" rx="11" fill="#E0C98A"/><text class="sq-tok" x="0" y="3.5" text-anchor="middle">B</text></g>
+        </svg>
+        <div class="synckey">
+          <span class="sk"><i style="background:#7FD4BE"></i>immutable local event</span>
+          <span class="sk"><i style="background:#E0C98A"></i>in flight · server has it</span>
+          <span class="sk"><i style="background:#9FB4CC"></i>acknowledged · safe to clear</span>
+          <span class="sk"><i style="background:#E89A8A"></i>failure</span>
+        </div>
+      </div>
+      <div class="syncsteps" id="syncSteps" aria-live="polite"></div>
     </div>
     <div class="progress"><div class="bar" id="bar"></div></div>
     <div class="player-controls">
@@ -785,7 +832,6 @@ svg.focused .aedge:not(.lit),svg.focused .aarrow:not(.lit){opacity:.05}
         <button class="spd active" data-s="1">1×</button>
         <button class="spd" data-s="2">2×</button>
       </span>
-      <div class="step-readout safe" id="readout"><b>Ready.</b> Choose a scenario and press play.</div>
     </div>
     <div class="guarantee"><b>GUARANTEE:</b> the local outbox is never cleared before the server ACK &mdash; so a dead battery, a crash, or a flaky network can never lose or duplicate an action.</div>
   </div>
@@ -1313,240 +1359,208 @@ if(HAS_IO){
    ============================================================ */
 (function(){
   var svg=$("syncSvg"); if(!svg) return;
-  var lanesG=$("lanes"), trail=$("trail"), auxG=$("aux"), packet=$("packet"), packet2=$("packet2");
-  var bar=$("bar"), readout=$("readout"), stepcount=$("stepcount"), scnDescEl=$("scnDesc"), scnTabs=$("scenarios");
+  var actorsG=$("sqActors"), msgsG=$("sqMsgs"), auxG=$("sqAux");
+  var packet=$("packet"), packet2=$("packet2");
+  var bar=$("bar"), stepcount=$("stepcount"), scnDescEl=$("scnDesc"), scnTabs=$("scenarios"), stepsEl=$("syncSteps");
   var btnPrev=$("prev"), btnPlay=$("play"), btnNext=$("next"), btnReset=$("reset");
 
-  var LANES=[{x:110,l:"Field UI",s:"mobile"},{x:300,l:"Local outbox",s:"SQLCipher"},
-             {x:490,l:"Sync client",s:"resumable"},{x:680,l:"Server ingest",s:"FastAPI"},{x:850,l:"Postgres",s:"durable"}];
-  function lx(i){return LANES[i].x;}
-  // lifelines + heads
-  LANES.forEach(function(L){
-    el("rect",{x:L.x-62,y:22,width:124,height:42,rx:10,fill:"#1B3A5C"},lanesG);
-    var a=el("text",{x:L.x,y:42,"font-size":12,"font-weight":700,fill:"#fff","text-anchor":"middle"},lanesG); a.textContent=L.l;
-    var b=el("text",{x:L.x,y:56,"font-size":9,fill:"#A8D2C6","text-anchor":"middle"},lanesG); b.textContent=L.s;
-    el("line",{x1:L.x,y1:64,x2:L.x,y2:330,stroke:"#33506e","stroke-dasharray":"3 4"},lanesG);
-  });
-  // persistent indicators
-  var outBadge=el("g",{},lanesG);
-  var obC=el("circle",{cx:lx(1)+50,cy:44,r:12,fill:"#0C7A63",opacity:0},outBadge);
-  var obT=el("text",{x:lx(1)+50,y:48,"font-size":11,"font-weight":700,fill:"#fff","text-anchor":"middle",opacity:0},outBadge);
-  var curT=el("text",{x:lx(4),y:348,"font-size":11,fill:"#A8D2C6","text-anchor":"middle"},lanesG); curT.textContent="cursor: 0";
-
-  // aux elements (toggled per step)
-  function auxBox(x,y,w,fill,stroke,txt,sub){
-    var g=el("g",{opacity:0},auxG);
-    el("rect",{x:x-w/2,y:y-15,width:w,height:sub?34:26,rx:8,fill:fill,stroke:stroke,"stroke-width":1.4},g);
-    var t=el("text",{x:x,y:sub?y-2:y+3,"font-size":10.5,"font-weight":700,fill:stroke,"text-anchor":"middle"},g); t.textContent=txt;
-    if(sub){var s=el("text",{x:x,y:y+12,"font-size":8.5,fill:stroke,"text-anchor":"middle"},g); s.textContent=sub;}
-    return g;
-  }
-  var AUX={
-    battery: auxBox(lx(0),300,120,"#F8EBE7","#A03E30","⚡ powered off","event already on disk"),
-    drop:    auxBox((lx(2)+lx(3))/2,196,140,"#F8EBE7","#A03E30","✕ connection dropped","cursor remembers"),
-    dup:     auxBox(lx(3),300,150,"#EAF4F0","#0C7A63","↺ duplicate ignored","same UUID → no-op"),
-    conflict:auxBox((lx(3)+lx(4))/2,300,160,"#F6EEDD","#A87C32","⚠ Conflict Inbox","both events preserved")
-  };
-  function setAux(list){ for(var k in AUX){ AUX[k].setAttribute("opacity", (list&&list.indexOf(k)>=0)?"1":"0"); } }
-  function setOutbox(n){
-    if(n>0){ obC.setAttribute("opacity","1"); obT.setAttribute("opacity","1"); obT.textContent=n; }
-    else { obC.setAttribute("opacity","0"); obT.setAttribute("opacity","0"); }
-  }
-  function setCursor(n){ curT.textContent="cursor: "+(n||0); }
-
-  // scenario step shape:
-  // {t,note,why,state, seg?{a,b,y, a2?,b2?,y2?,c2?}, color, mode?'drop', at?{x,y}, conn?bool, dash?,
-  //  cursor, outbox, aux?[] }
-  function seg(a,b,y){ return {x1:lx(a),y1:y,x2:lx(b),y2:y}; }
   var TEAL="#7FD4BE", GOLD="#E0C98A", NAVY="#9FB4CC", RED="#E89A8A";
-  var Y=[112,150,188,222,256,290];
+  var KCOL={local:TEAL, send:GOLD, commit:GOLD, ack:NAVY, fail:RED};
 
+  var ACT=[
+    {x:64, n:"Field UI", s:"the app"},
+    {x:178,n:"Outbox", s:"encrypted"},
+    {x:292,n:"Sync client", s:"resumable"},
+    {x:406,n:"Server", s:"FastAPI"},
+    {x:506,n:"Postgres", s:"durable"}
+  ];
+  var TOP=20, HEAD_H=46, LIFE_TOP=72, LIFE_BOT=524, ROW0=150, ROWH=52;
+  function rowY(i){ return ROW0 + i*ROWH; }
+
+  ACT.forEach(function(a){
+    el("rect",{x:a.x-48,y:TOP,width:96,height:HEAD_H,rx:9,fill:"#1B3A5C",stroke:"#2c4a68","stroke-width":1},actorsG);
+    var t=el("text",{class:"sq-name",x:a.x,y:TOP+19,"text-anchor":"middle"},actorsG); t.textContent=a.n;
+    var s=el("text",{class:"sq-sub",x:a.x,y:TOP+33,"text-anchor":"middle"},actorsG); s.textContent=a.s;
+    el("line",{x1:a.x,y1:LIFE_TOP,x2:a.x,y2:LIFE_BOT,stroke:"#2c4a68","stroke-dasharray":"3 5"},actorsG);
+  });
+  function chip(x){ var g=el("g",{},actorsG);
+    var r=el("rect",{x:x-44,y:LIFE_TOP+6,width:88,height:22,rx:11,fill:"#15324a",stroke:"#2c4a68"},g);
+    var t=el("text",{x:x,y:LIFE_TOP+21,"text-anchor":"middle","font-size":10,"font-weight":700,fill:"#A8D2C6","font-family":"IBM Plex Mono, monospace"},g);
+    return {r:r,t:t}; }
+  var obxChip=chip(ACT[1].x), curChip=chip(ACT[4].x);
+  function setState(outbox,cursor,fo,fc){
+    obxChip.t.textContent="outbox: "+outbox; curChip.t.textContent="cursor: "+cursor;
+    obxChip.r.setAttribute("fill",fo?"#0C7A63":"#15324a"); curChip.r.setAttribute("fill",fc?"#1f4a6e":"#15324a");
+  }
+
+  function st(o){ return o; }
   var SCEN=[
-    {id:"happy",name:"Happy path",tag:"A",desc:"<b>The normal life of one field action</b> — captured offline, synced once, acknowledged, then (and only then) cleared from the device.",
-     steps:[
-      {t:"1 · Capture action → write immutable event",note:"UUID · timestamp · content hash",why:"The event is immutable the instant it is created — it can be replayed, never altered.",state:"safe",seg:seg(0,1,Y[0]),color:TEAL,cursor:0,outbox:1},
-      {t:"2 · Apply to the local read model",note:"instant UI — offline OK",why:"The user sees the result immediately; the network is irrelevant to capturing work.",state:"safe",seg:seg(1,0,Y[1]),color:TEAL,cursor:0,outbox:1},
-      {t:"3 · Queue the pending batch",note:"badge shows 1 pending",why:"Still only on the device — if it dies right now, the event survives in the encrypted outbox.",state:"safe",seg:seg(1,2,Y[2]),color:TEAL,cursor:0,outbox:1},
-      {t:"4 · POST /sync (batch + UUIDs)",note:"Idempotency-Key header",why:"Because the request carries idempotency keys, the server can safely receive it more than once.",state:"info",seg:seg(2,3,Y[3]),color:GOLD,cursor:0,outbox:1},
-      {t:"5 · Upsert if UUID unseen → commit",note:"dedupe on UUID",why:"First time this UUID is seen, so it commits exactly once and advances the server cursor.",state:"info",seg:seg(3,4,Y[4]),color:GOLD,cursor:1,outbox:1},
-      {t:"6 · 200 ACK + server cursor",note:"now safe to clear outbox",why:"Only after the ACK does the device clear the event — never before. No loss, no duplicate.",state:"safe",seg:seg(3,2,Y[5]),color:NAVY,cursor:1,outbox:0}
-     ]},
-    {id:"battery",name:"Battery dies mid-capture",tag:"B",desc:"<b>The device powers off</b> between capturing and syncing. Because the event was persisted first, nothing is lost.",
-     steps:[
-      {t:"1 · Capture → persist immutable event",note:"written to encrypted store first",why:"Persistence happens before anything else — the event is on disk, not just in memory.",state:"safe",seg:seg(0,1,Y[0]),color:TEAL,cursor:0,outbox:1},
-      {t:"2 · Battery dies",note:"device powers off",why:"The outbox is durable storage; a power loss cannot erase a committed local event.",state:"danger",at:{x:lx(1),y:Y[0]},color:TEAL,aux:["battery"],cursor:0,outbox:1},
-      {t:"3 · Device powered back on",note:"app reopens, outbox intact",why:"Nothing lived in volatile memory only — the outbox is exactly as it was.",state:"safe",at:{x:lx(1),y:Y[0]},color:TEAL,cursor:0,outbox:1},
-      {t:"4 · Reconnect → unsent event found",note:"outbox drains on its own",why:"On reconnect the sync client finds the pending event and sends it — exactly once.",state:"info",seg:seg(1,3,Y[3]),color:GOLD,cursor:0,outbox:1},
-      {t:"5 · Commit + ACK → clear outbox",note:"cursor advances, then clear",why:"Despite the crash, the captured tap reaches Postgres and is acknowledged. Zero data loss.",state:"safe",seg:seg(3,4,Y[4]),color:GOLD,cursor:1,outbox:0}
-     ]},
-    {id:"dup",name:"Duplicate send",tag:"C",desc:"<b>The ACK is lost</b>, so the client retries the same event. Idempotency makes the retry a no-op — never a double.",
-     steps:[
-      {t:"1 · Capture event (UUID abc)",note:"queued for sync",why:"One logical action, one stable UUID — the key the server will dedupe on.",state:"safe",seg:seg(0,1,Y[0]),color:TEAL,cursor:0,outbox:1},
-      {t:"2 · POST /sync → commit",note:"UUID abc committed",why:"The server commits the event and advances its cursor.",state:"info",seg:seg(2,4,Y[2]),color:GOLD,cursor:1,outbox:1},
-      {t:"3 · ACK lost on the way back",note:"client never hears 200",why:"The commit succeeded, but the client doesn't know that — so it must retry.",state:"warn",seg:seg(3,2,Y[3]),color:RED,mode:"drop",aux:["drop"],cursor:1,outbox:1},
-      {t:"4 · Client retries (same UUID abc)",note:"identical Idempotency-Key",why:"The retry carries the very same UUID, not a new one.",state:"info",seg:seg(2,3,Y[4]),color:GOLD,cursor:1,outbox:1},
-      {t:"5 · Server sees UUID abc → ignores",note:"no second row written",why:"Idempotency means the retry is a no-op. There is no double count.",state:"safe",at:{x:lx(3),y:Y[4]},color:TEAL,aux:["dup"],cursor:1,outbox:1},
-      {t:"6 · ACK delivered → clear outbox",note:"exactly-once achieved",why:"One action, one row, finally acknowledged. Duplicates are structurally impossible.",state:"safe",seg:seg(3,2,Y[5]),color:NAVY,cursor:1,outbox:0}
-     ]},
-    {id:"drop",name:"Network drops mid-batch",tag:"D",desc:"<b>A 3-event batch is interrupted.</b> The server cursor is the exact resume point — committed events are never re-sent, and none is skipped.",
-     steps:[
-      {t:"1 · Three events queued",note:"outbox: e1, e2, e3",why:"A batch of three actions waits in the outbox.",state:"safe",seg:seg(0,1,Y[0]),color:TEAL,cursor:0,outbox:3},
-      {t:"2 · POST /sync [e1, e2, e3]",note:"ordered, idempotent batch",why:"The whole batch is sent; the server processes it in order.",state:"info",seg:seg(2,3,Y[1]),color:GOLD,cursor:0,outbox:3},
-      {t:"3 · Commit e1, e2 — then drop",note:"cursor = 2; e3 in-flight lost",why:"Two events are committed and the cursor records that. The connection then fails.",state:"warn",seg:seg(3,4,Y[2]),color:RED,mode:"drop",aux:["drop"],cursor:2,outbox:1},
-      {t:"4 · Reconnect → GET cursor",note:"server replies: cursor = 2",why:"The resume point is authoritative — no guessing which events landed.",state:"info",seg:seg(2,3,Y[3]),color:NAVY,cursor:2,outbox:1},
-      {t:"5 · Resume: send e3 only",note:"not e1 / e2 again",why:"Resume is exact: committed events are never re-sent, and e3 is not skipped.",state:"safe",seg:seg(3,4,Y[4]),color:GOLD,cursor:3,outbox:0},
-      {t:"6 · Batch durable + acknowledged",note:"3 of 3 committed once",why:"All three events committed exactly once across a broken connection.",state:"safe",seg:seg(3,2,Y[5]),color:NAVY,cursor:3,outbox:0}
-     ]},
-    {id:"conflict",name:"Two commissions, one asset",tag:"E",desc:"<b>Two teams edit the same asset offline.</b> Neither write is silently dropped — both events are preserved and the clash goes to the Conflict Inbox for a human.",
-     steps:[
-      {t:"1 · Two members capture asset #4471 offline",note:"A: room 210 · B: room 305",why:"Both are valid local events — neither device is wrong at capture time.",state:"safe",seg:{x1:lx(0),y1:Y[0],x2:lx(1),y2:Y[0],a2:0,b2:1,y2b:Y[1]},color:TEAL,color2:GOLD,cursor:0,outbox:2},
-      {t:"2 · Both sync to the server",note:"each carries its own UUID",why:"Two distinct events arrive — they are not the same action, so neither is a duplicate.",state:"info",seg:{x1:lx(2),y1:Y[2],x2:lx(3),y2:Y[2],a2:2,b2:3,y2b:Y[3]},color:GOLD,color2:GOLD,cursor:0,outbox:2},
-      {t:"3 · Server commits BOTH events",note:"no last-write-wins",why:"We never silently overwrite — both versions are stored immutably.",state:"safe",seg:seg(3,4,Y[4]),color:TEAL,cursor:2,outbox:0},
-      {t:"4 · Reconciliation detects divergence",note:"asset #4471: two room values",why:"One asset cannot hold two truths — the engine flags the clash instead of choosing.",state:"warn",at:{x:lx(4),y:Y[4]},color:GOLD,cursor:2,outbox:0},
-      {t:"5 · Routed to the Conflict Inbox",note:"not auto-resolved",why:"A president resolves it; the 'losing' value is superseded with a reason, never deleted.",state:"warn",seg:seg(4,3,Y[5]),color:GOLD,aux:["conflict"],cursor:2,outbox:0},
-      {t:"6 · Human resolves → audit entry",note:"both source events retained",why:"The decision is written to the append-only audit log; the full history stays intact.",state:"safe",at:{x:(lx(3)+lx(4))/2,y:Y[5]},color:TEAL,aux:["conflict"],cursor:2,outbox:0}
-     ]}
+   {id:"happy",name:"Happy path",tag:"A",desc:"<b>The normal life of one field action</b> — captured offline, synced once, acknowledged, then (and only then) cleared from the device.",
+    steps:[
+     st({from:0,to:1,kind:"local",msg:"write event",tok:"evt",outbox:1,cursor:0,title:"Capture → write an immutable event",detail:"Tapping a status writes a new event to the on-device store, carrying a UUID, a timestamp and a content hash. It can be replayed, but never silently changed.",why:"From this instant the action exists on disk — losing it would mean deleting the encrypted database."}),
+     st({from:1,to:0,kind:"local",msg:"update UI",tok:"evt",outbox:1,cursor:0,title:"Update the local read model",detail:"The same event updates the screen immediately — no spinner, no network round-trip.",why:"Capturing work never depends on connectivity, so a member with no signal keeps moving."}),
+     st({from:1,to:2,kind:"local",msg:"queue batch",tok:"evt",outbox:1,cursor:0,title:"Queue the event for sync",detail:"The sync client picks the event into the next pending batch; a badge shows how many events are waiting.",why:"It is still only on the device — if the phone dies now, the event is safe in the outbox."}),
+     st({from:2,to:3,kind:"send",msg:"POST /sync",tok:"evt",outbox:1,cursor:0,title:"POST /sync — send the batch",detail:"When a connection appears, the client POSTs the batch. Every event carries an Idempotency-Key (its UUID), so the server can receive the same batch more than once without harm.",why:"Idempotency keys are what make a retry safe — the server can tell a repeat from a new action."}),
+     st({from:3,to:4,kind:"commit",msg:"commit · new UUID",tok:"evt",outbox:1,cursor:1,title:"Server commits the event once",detail:"The server checks the UUID, has not seen it, writes the row and advances its per-tenant cursor to 1.",why:"The cursor is the server’s record of exactly how far this device has been processed."}),
+     st({from:3,to:2,kind:"ack",msg:"200 + cursor",tok:"ok",outbox:1,cursor:1,title:"200 ACK + server cursor",detail:"The server replies 200 with the new cursor. Only now does the client know the event is durably stored.",why:"Until this reply arrives the client assumes nothing — it would rather retry than risk a loss."}),
+     st({from:2,to:1,kind:"ack",msg:"clear event",tok:"ok",outbox:0,cursor:1,title:"Clear the event from the outbox",detail:"With the ACK in hand, the client removes the acknowledged event from the outbox.",why:"The outbox is only ever cleared after the ACK — never before. No loss, and the UUID guarantees no duplicate."})
+    ]},
+   {id:"battery",name:"Battery dies mid-capture",tag:"B",desc:"<b>The device powers off</b> between capturing and syncing. Because the event was persisted first, nothing is lost.",
+    steps:[
+     st({from:0,to:1,kind:"local",msg:"write event",tok:"evt",outbox:1,cursor:0,title:"Capture → write to disk first",detail:"The status is written to the encrypted outbox before anything is shown or sent.",why:"Persistence happens before display or sync, so the event is on disk immediately."}),
+     st({ann:true,kind:"fail",fail:true,msg:"⚡ battery dies — device powers off",outbox:1,cursor:0,title:"Battery dies",detail:"Mid-inventory the phone powers off completely — before any sync happened.",why:"The outbox is durable storage on the device; a power cut cannot erase what is already written."}),
+     st({ann:true,kind:"ack",msg:"device powered back on",outbox:1,cursor:0,title:"Device powered back on",detail:"The member charges the phone and reopens the app. The outbox is exactly as it was.",why:"Nothing important lived only in memory, so nothing was lost in the crash."}),
+     st({from:2,to:3,kind:"send",msg:"POST /sync",tok:"evt",outbox:1,cursor:0,title:"Reconnect → send the unsent event",detail:"On reconnect the sync client finds the still-pending event and POSTs it.",why:"The outbox drains on its own — the member does not have to remember to do anything."}),
+     st({from:3,to:4,kind:"commit",msg:"commit · new UUID",tok:"evt",outbox:1,cursor:1,title:"Server commits the event",detail:"First time the server sees this UUID, so it commits once and sets the cursor to 1.",why:"One UUID, one row — the crash changed nothing about how it is processed."}),
+     st({from:3,to:2,kind:"ack",msg:"200 → clear",tok:"ok",outbox:0,cursor:1,title:"ACK → clear the outbox",detail:"The server acknowledges; the client clears the event. The captured tap survived a full power loss.",why:"A dead battery cost nothing — zero data loss, zero duplicates."})
+    ]},
+   {id:"dup",name:"Duplicate send",tag:"C",desc:"<b>The ACK is lost</b>, so the client retries the same event. Idempotency makes the retry a no-op — never a double.",
+    steps:[
+     st({from:0,to:1,kind:"local",msg:"write event abc",tok:"abc",outbox:1,cursor:0,title:"Capture event abc",detail:"A status is captured and written as event abc (its UUID).",why:"The stable UUID is the key the server will later dedupe on."}),
+     st({from:1,to:2,kind:"local",msg:"queue",tok:"abc",outbox:1,cursor:0,title:"Queue for sync",detail:"Event abc moves into the pending batch.",why:"Still device-only and safe in the outbox."}),
+     st({from:2,to:3,kind:"send",msg:"POST abc",tok:"abc",outbox:1,cursor:0,title:"POST /sync",detail:"The client sends abc to the server with its Idempotency-Key.",why:"The key is what lets the server detect a later repeat."}),
+     st({from:3,to:4,kind:"commit",msg:"commit abc",tok:"abc",outbox:1,cursor:1,title:"Server commits abc",detail:"The server has not seen abc, so it commits the row and moves the cursor to 1.",why:"The write has already succeeded here — even though the client does not know yet."}),
+     st({from:3,to:2,kind:"fail",fail:true,msg:"200 ACK ✗",tok:"ok",outbox:1,cursor:1,title:"The ACK is lost in transit",detail:"The server’s 200 reply never reaches the client (the signal drops on the way back). The commit already succeeded — but the client has no way to know.",why:"This is the classic ‘did it land?’ ambiguity. The protocol makes the safe answer — retry — completely harmless."}),
+     st({from:2,to:3,kind:"send",msg:"retry abc",tok:"abc",outbox:1,cursor:1,title:"Client retries — the same UUID",detail:"After a timeout the client re-sends, with the very same UUID abc, not a new one.",why:"Re-sending the identical UUID lets the server recognise a repeat instead of a second action."}),
+     st({from:3,to:2,kind:"ack",msg:"already seen",tok:"ok",mark:"↺ ignored — no second row",outbox:0,cursor:1,title:"Server dedupes, ACKs, client clears",detail:"The server sees abc is already committed, returns 200 without writing again, and the client finally clears the outbox. The cursor stays at 1.",why:"Idempotency turns the retry into a no-op. One tap → one row, even though it was sent twice."})
+    ]},
+   {id:"drop",name:"Network drops mid-batch",tag:"D",desc:"<b>A 3-event batch is interrupted.</b> The server cursor is the exact resume point — committed events are never re-sent, and none is skipped.",
+    steps:[
+     st({from:0,to:1,kind:"local",msg:"write batch",tok:"e1-3",outbox:3,cursor:0,title:"Three events queued",detail:"The member captures three assets. All three sit in the outbox as e1, e2, e3.",why:"A whole batch waits locally; none of it depends on the network yet."}),
+     st({from:2,to:3,kind:"send",msg:"POST batch",tok:"e1-3",outbox:3,cursor:0,title:"POST the batch of three",detail:"On reconnect the client sends the batch in order.",why:"The server processes events in sequence and records how far it gets."}),
+     st({from:3,to:4,kind:"fail",fail:true,msg:"commit e1,e2 ✗",tok:"e1,e2",outbox:1,cursor:2,title:"Two commit, then the link drops",detail:"The server commits e1 and e2 and moves the cursor to 2 — then the connection fails before e3 is processed and before any reply is sent.",why:"Because progress is a cursor, the server knows precisely that it reached e2."}),
+     st({from:2,to:3,kind:"ack",msg:"GET cursor → 2",tok:"?",outbox:1,cursor:2,title:"Reconnect → ask ‘where were we?’",detail:"On reconnect the client asks the server for its cursor. The server answers: 2.",why:"The resume point is authoritative — the client never guesses which events landed."}),
+     st({from:2,to:3,kind:"send",msg:"resume: send e3",tok:"e3",outbox:1,cursor:2,title:"Resume — send only e3",detail:"Knowing the cursor is 2, the client sends just e3. It does not re-send e1 or e2.",why:"Resume is exact: committed events are never re-sent, and the missing one is never skipped."}),
+     st({from:3,to:4,kind:"commit",msg:"commit e3",tok:"e3",outbox:1,cursor:3,title:"Server commits e3",detail:"e3 is new, so it commits and the cursor advances to 3.",why:"All three are now committed exactly once."}),
+     st({from:3,to:2,kind:"ack",msg:"200 + cursor 3",tok:"ok",outbox:0,cursor:3,title:"ACK → clear the outbox",detail:"All three events are committed exactly once. The client clears the outbox.",why:"A broken connection mid-batch cost nothing — no gap, no double."})
+    ]},
+   {id:"conflict",name:"Two commissions, one asset",tag:"E",desc:"<b>Two teams edit the same asset offline.</b> Neither write is silently dropped — both events are preserved and the clash goes to the Conflict Inbox for a human.",
+    steps:[
+     st({from:0,to:1,kind:"local",msg:"capture A (r210)",tok:"A",outbox:1,cursor:0,title:"Commission A captures #4471",detail:"Team A counts monitor #4471 in room 210 and writes event A (UUID-A).",why:"A legitimate observation, recorded immutably."}),
+     st({from:0,to:1,kind:"local",msg:"capture B (r305)",tok:"B",outbox:2,cursor:0,title:"Commission B captures the SAME asset",detail:"Independently and offline, team B counts the same monitor in room 305 and writes event B (UUID-B). Neither team is ‘wrong’ yet.",why:"Both are valid local events; the system will not pick between them on its own."}),
+     st({from:2,to:3,kind:"send",msg:"POST A + B",tok:"A",p2:{tok:"B",kind:"send"},outbox:2,cursor:0,title:"Both events sync to the server",detail:"When the devices reconnect, both events arrive — each with its own UUID, so neither is a duplicate of the other.",why:"Two UUIDs mean two distinct actions; nothing is dropped as a ‘dup’."}),
+     st({from:3,to:4,kind:"commit",msg:"commit A + B",tok:"A",p2:{tok:"B",kind:"commit"},outbox:2,cursor:2,title:"Server commits both — never last-write-wins",detail:"The server stores both events immutably. It does not overwrite A with B or pick a winner; the cursor advances by two.",why:"Silently overwriting would lose a real observation; instead both versions are preserved."}),
+     st({ann:true,kind:"send",msg:"reconciliation → Conflict Inbox",outbox:2,cursor:2,title:"Reconciliation flags the clash",detail:"Later, reconciliation sees one asset with two different room values and routes it to the Conflict Inbox — it does not auto-resolve.",why:"A person decides which is correct; the ‘losing’ value is superseded with a reason, never deleted."}),
+     st({from:3,to:2,kind:"ack",msg:"ACK A + B",tok:"ok",outbox:0,cursor:2,title:"Both acknowledged; outbox cleared",detail:"Both events are durable and acknowledged, so the devices clear them. The full history — including the superseded value — stays in the audit trail.",why:"No edit is dropped; the disagreement is surfaced to a human, not hidden."})
+    ]}
   ];
 
-  var scn=SCEN[0], cur=-1, playing=false, speed=1, timer=null, animTok=0;
+  function place(g,x,y,col,tokn,op){
+    var w=Math.max(34, String(tokn).length*8+16);
+    g.setAttribute("transform","translate("+x+","+y+")"); g.setAttribute("opacity",op);
+    var r=g.querySelector("rect"); if(r){ r.setAttribute("fill",col); r.setAttribute("x",-w/2); r.setAttribute("width",w); }
+    var t=g.querySelector("text"); if(t) t.textContent=tokn;
+  }
+  function hidePackets(){ packet.setAttribute("opacity",0); packet2.setAttribute("opacity",0); }
+  function drawMsg(s,y,faint){
+    var x1=ACT[s.from].x, x2=ACT[s.to].x, dir=x2>x1?1:-1, col=KCOL[s.kind], op=faint?0.34:1;
+    var endX=s.fail?Math.round(x1+(x2-x1)*0.62):x2;
+    var g=el("g",{opacity:op},msgsG);
+    el("line",{x1:x1,y1:y,x2:s.fail?endX:endX-dir*8,y2:y,stroke:col,"stroke-width":faint?1.6:2.4,"stroke-dasharray":s.fail?"5 4":"0"},g);
+    if(!s.fail) el("polygon",{points:x2+","+y+" "+(x2-dir*9)+","+(y-5)+" "+(x2-dir*9)+","+(y+5),fill:col},g);
+    else el("text",{x:endX+(dir>0?9:-9),y:y+4,"font-size":13,"font-weight":700,fill:RED,"text-anchor":"middle"},g).textContent="✗";
+    var lab=el("text",{class:"sq-msg",x:(x1+x2)/2,y:y-9,"text-anchor":"middle",fill:faint?"#7E92A8":col},g); lab.textContent=s.msg;
+    if(s.mark) el("text",{x:(x1+x2)/2,y:y+16,"font-size":9,"font-style":"italic",fill:faint?"#6f8298":"#cfe0d6","text-anchor":"middle","font-family":"Archivo, sans-serif"},g).textContent=s.mark;
+  }
+  function drawAnn(s,y,faint){
+    var col=KCOL[s.kind]||NAVY, cx=285, w=Math.min(380, s.msg.length*6.6+44);
+    var g=el("g",{opacity:faint?0.4:1},msgsG);
+    el("rect",{x:cx-w/2,y:y-15,width:w,height:30,rx:9,fill:"#15324a",stroke:col,"stroke-width":1.4},g);
+    el("text",{x:cx,y:y+4,"text-anchor":"middle","font-size":11,"font-weight":700,fill:col,"font-family":"Archivo, sans-serif"},g).textContent=s.msg;
+  }
+  function renderUpto(active){
+    msgsG.innerHTML=""; auxG.innerHTML="";
+    for(var k=0;k<=active;k++){ var s=scn.steps[k]; if(s.ann) drawAnn(s,rowY(k),k!==active); else drawMsg(s,rowY(k),k!==active); }
+  }
 
+  function buildSteps(){
+    var po=0,pc=0;
+    stepsEl.innerHTML=scn.steps.map(function(s,i){
+      var oc=s.outbox!==po, cc=s.cursor!==pc; po=s.outbox; pc=s.cursor;
+      var badges='<span class="sbadge'+(oc?" chg":"")+'">outbox '+s.outbox+'</span><span class="sbadge'+(cc?" chg":"")+'">cursor '+s.cursor+'</span>';
+      return '<button class="sstep'+(s.fail?" fail":"")+'" data-i="'+i+'">'+
+        '<span class="sn">'+(s.fail?"!":(i+1))+'</span>'+
+        '<span class="st">'+s.title+'</span>'+
+        '<div class="sbody"><div class="sd">'+s.detail+'</div>'+
+        '<div class="swy"><b>Why safe:</b>&nbsp;'+s.why+'</div>'+
+        '<div class="sbadges">'+badges+'</div></div></button>';
+    }).join("");
+  }
+  function markSteps(i){
+    var btns=stepsEl.querySelectorAll(".sstep");
+    btns.forEach(function(b,k){ b.classList.remove("active","done"); if(k<i) b.classList.add("done"); else if(k===i) b.classList.add("active"); });
+    var a=btns[i];
+    if(a && a.getBoundingClientRect && stepsEl.getBoundingClientRect){
+      var ar=a.getBoundingClientRect(), cr=stepsEl.getBoundingClientRect();
+      stepsEl.scrollTop += (ar.top-cr.top) - (stepsEl.clientHeight/2 - a.clientHeight/2);
+    }
+  }
+
+  var scn=SCEN[0], cur=-1, playing=false, speed=1, timer=null, tok=0;
   function clearTimer(){ if(timer){clearTimeout(timer);timer=null;} }
-  function cancelAnim(){ animTok++; }
-
-  function drawConn(i){
-    var s=scn.steps[i]; if(!s.seg) return;
-    var sg=s.seg, col=s.color, dash=(s.mode==="drop");
-    var x2 = dash ? lerp(sg.x1,sg.x2,0.62) : sg.x2;
-    var y2 = dash ? lerp(sg.y1,sg.y2,0.62) : sg.y2;
-    el("line",{x1:sg.x1,y1:sg.y1,x2:x2,y2:y2,stroke:col,"stroke-width":2,opacity:0.55,
-      "stroke-dasharray":dash?"5 4":"0"},trail);
-    if(sg.a2!=null){
-      el("line",{x1:lx(sg.a2),y1:sg.y2b,x2:lx(sg.b2),y2:sg.y2b,stroke:(s.color2||GOLD),"stroke-width":2,opacity:0.55},trail);
-    }
-  }
-  function redrawConns(upto){
-    trail.innerHTML="";
-    for(var k=0;k<=upto;k++) drawConn(k);
-  }
-  function setPos(elm,x,y,col,vis){
-    elm.setAttribute("cx",x); elm.setAttribute("cy",y);
-    if(col) elm.setAttribute("fill",col);
-    elm.setAttribute("opacity",vis?"1":"0");
-  }
-  function startPt(sg){return {x:sg.x1,y:sg.y1};}
-  function endPt(sg){return {x:sg.x2,y:sg.y2};}
-
-  function showReadout(s){
-    readout.className="step-readout "+(s.state||"info");
-    readout.innerHTML="<b>"+s.t+"</b> &mdash; <span style='color:#828B97'>"+s.note+"</span><span class='why'>"+s.why+"</span>";
-  }
-  function setCount(){ stepcount.textContent="Step "+(cur<0?0:cur+1)+" / "+scn.steps.length; }
-  function setBar(){ var n=scn.steps.length; bar.style.width=(cur<0?0:(cur/(n-1))*100)+"%"; }
-  function setPlayLabel(){ btnPlay.innerHTML = playing ? "&#10074;&#10074;&nbsp; Pause" : "&#9654;&nbsp; Play"; }
+  function cancel(){ tok++; }
+  function setPlayLabel(){ btnPlay.innerHTML=playing?"❙❙&nbsp; Pause":"▶&nbsp; Play"; }
   function updateNav(){ btnPrev.disabled=(cur<=0); btnNext.disabled=(cur>=scn.steps.length-1); }
+  function sfx(s){ if(s.fail||(s.ann&&s.kind==="fail")) FX.error(); else if(s.ann) FX.tick(); else if(s.kind==="ack") FX.ack(); else FX.move(); }
 
-  function animate(s,done){
-    var tok=++animTok, dur=820/speed, t0=performance.now();
-    var has2=s.seg && s.seg.a2!=null;
-    function fr(now){
-      if(tok!==animTok) return;
-      var p=Math.min((now-t0)/dur,1), e=ease(p);
-      setPos(packet, lerp(s.seg.x1,s.seg.x2,e), lerp(s.seg.y1,s.seg.y2,e), s.color, true);
-      if(s.mode==="drop" && p>0.62) packet.setAttribute("opacity", String(Math.max(0,1-(p-0.62)/0.38)));
-      if(has2) setPos(packet2, lerp(lx(s.seg.a2),lx(s.seg.b2),e), s.seg.y2b, s.color2||GOLD, true);
-      else packet2.setAttribute("opacity","0");
-      if(p<1) requestAnimationFrame(fr); else done&&done();
-    }
-    requestAnimationFrame(fr);
-  }
-
-  function enter(i, animateIt){
-    clearTimer(); cancelAnim();
+  function enter(i,animate){
+    clearTimer(); cancel();
     if(i>=scn.steps.length){ finish(); return; }
-    cur=i; var s=scn.steps[i];
-    setAux(s.aux); setOutbox(s.outbox); setCursor(s.cursor);
-    showReadout(s); setCount(); setBar(); updateNav();
-    if(s.mode==="drop"||s.state==="danger") FX.error(); else if(s.state==="warn") FX.warn();
-    else if(/ACK|acknowledg|durable/i.test(s.t)) FX.ack(); else if(s.seg) FX.move(); else FX.tick();
-    if(s.seg){
-      if(animateIt && !REDUCED){
-        redrawConns(i-1);
-        setPos(packet, s.seg.x1, s.seg.y1, s.color, true);
-        if(s.seg.a2!=null) setPos(packet2, lx(s.seg.a2), s.seg.y2b, s.color2||GOLD, true); else packet2.setAttribute("opacity","0");
-        animate(s, function(){
-          drawConn(i);
-          if(s.mode==="drop") packet.setAttribute("opacity","0");
-          if(playing){ timer=setTimeout(function(){ enter(i+1,true); }, 380/speed); }
-        });
-      } else {
-        redrawConns(i);
-        var vis = s.mode!=="drop";
-        setPos(packet, s.seg.x2, s.seg.y2, s.color, vis);
-        if(s.seg.a2!=null) setPos(packet2, lx(s.seg.b2), s.seg.y2b, s.color2||GOLD, true); else packet2.setAttribute("opacity","0");
-        if(animateIt && playing){ timer=setTimeout(function(){ enter(i+1,true); }, 380/speed); }
-      }
+    if(i<0) i=0; cur=i;
+    var s=scn.steps[i], prev=i>0?scn.steps[i-1]:{outbox:0,cursor:0};
+    markSteps(i); renderUpto(i);
+    setState(s.outbox,s.cursor,s.outbox!==prev.outbox,s.cursor!==prev.cursor);
+    bar.style.width=(scn.steps.length>1?(i/(scn.steps.length-1)*100):100)+"%";
+    stepcount.textContent="Step "+(i+1)+" / "+scn.steps.length;
+    setPlayLabel(); updateNav(); sfx(s);
+    if(s.ann){ hidePackets(); if(animate && playing){ timer=setTimeout(function(){ enter(i+1,true); }, 1000/speed); } return; }
+    var y=rowY(i), col=KCOL[s.kind], x1=ACT[s.from].x, x2=ACT[s.to].x, endX=s.fail?x1+(x2-x1)*0.62:x2;
+    if(animate && !REDUCED){
+      var t=++tok, dur=720/speed, t0=performance.now();
+      place(packet,x1,y,col,s.tok,1);
+      if(s.p2) place(packet2,x1,y+14,KCOL[s.p2.kind]||GOLD,s.p2.tok,1); else packet2.setAttribute("opacity",0);
+      (function fr(now){
+        if(t!==tok) return;
+        var p=Math.min((now-t0)/dur,1), e=ease(p);
+        place(packet, x1+(endX-x1)*e, y, col, s.tok, s.fail&&p>0.6?Math.max(0,1-(p-0.6)/0.4):1);
+        if(s.p2) place(packet2, x1+(x2-x1)*e, y+14, KCOL[s.p2.kind]||GOLD, s.p2.tok, 1);
+        if(p<1) requestAnimationFrame(fr);
+        else { if(s.fail) packet.setAttribute("opacity",0); if(playing){ timer=setTimeout(function(){ enter(i+1,true); }, 440/speed); } }
+      })(performance.now());
     } else {
-      redrawConns(i-1);
-      if(s.at) setPos(packet, s.at.x, s.at.y, s.color, true);
-      packet2.setAttribute("opacity","0");
-      if(animateIt && playing){ timer=setTimeout(function(){ enter(i+1,true); }, 900/speed); }
+      if(s.fail){ hidePackets(); }
+      else { place(packet,endX,y,col,s.tok,1); if(s.p2) place(packet2,x2,y+14,KCOL[s.p2.kind]||GOLD,s.p2.tok,1); else packet2.setAttribute("opacity",0); }
+      if(animate && playing){ timer=setTimeout(function(){ enter(i+1,true); }, 760/speed); }
     }
   }
-
   function finish(){
-    playing=false; setPlayLabel(); clearTimer(); cancelAnim();
-    cur=scn.steps.length-1; setCount(); bar.style.width="100%"; updateNav();
-    readout.className="step-readout safe";
-    readout.innerHTML="<b>Done.</b> <span class='why'>"+scn.doneWhy()+"</span>";
-    FX.commit();
+    playing=false; setPlayLabel(); clearTimer(); cancel();
+    cur=scn.steps.length-1; bar.style.width="100%"; stepcount.textContent="Step "+scn.steps.length+" / "+scn.steps.length;
+    markSteps(cur); updateNav(); FX.commit();
   }
-  SCEN.forEach(function(s){
-    var msgs={happy:"The action is durable and acknowledged — no loss, no duplicate.",
-      battery:"A dead battery cost nothing: the event was on disk before the crash.",
-      dup:"Exactly-once delivered — the lost ACK caused a no-op retry, not a double.",
-      drop:"All three events committed exactly once; the cursor made resume precise.",
-      conflict:"Both edits preserved; the clash was resolved by a human and fully audited."};
-    s.doneWhy=function(){return msgs[s.id];};
-  });
-
   function loadScenario(s){
-    scn=s; cur=-1; playing=false; clearTimer(); cancelAnim();
-    trail.innerHTML=""; setAux([]); setOutbox(0); setCursor(0);
-    packet.setAttribute("opacity","0"); packet2.setAttribute("opacity","0");
-    bar.style.width="0"; setCount(); setPlayLabel(); updateNav();
-    scnDescEl.innerHTML=s.desc;
-    readout.className="step-readout safe";
-    readout.innerHTML="<b>"+s.name+".</b> <span class='why'>Press play, or step through with the arrows.</span>";
-    btnPrev.disabled=true; btnNext.disabled=false;
+    scn=s; playing=false; clearTimer(); cancel();
+    buildSteps(); scnDescEl.innerHTML=s.desc; setPlayLabel();
+    cur=-1; enter(0,false); playing=false; setPlayLabel();
   }
 
-  // scenario tabs
   SCEN.forEach(function(s,i){
     var b=document.createElement("button");
     b.className="scn-btn"+(i===0?" active":""); b.setAttribute("role","tab");
     b.innerHTML='<span class="tagn">'+s.tag+'</span>'+s.name;
-    b.addEventListener("click",function(){
-      scnTabs.querySelectorAll(".scn-btn").forEach(function(x){x.classList.remove("active");});
-      b.classList.add("active"); loadScenario(s);
-    });
+    b.addEventListener("click",function(){ FX.tick(); scnTabs.querySelectorAll(".scn-btn").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); loadScenario(s); });
     scnTabs.appendChild(b);
   });
-
+  stepsEl.addEventListener("click",function(e){ var b=e.target.closest && e.target.closest(".sstep"); if(!b) return; playing=false; setPlayLabel(); enter(parseInt(b.dataset.i,10),false); });
   btnPlay.addEventListener("click",function(){
-    FX.unlock(); FX.click();
-    if(playing){ playing=false; setPlayLabel(); clearTimer(); cancelAnim(); if(cur>=0) enter(cur,false); return; }
-    if(cur>=scn.steps.length-1){ loadScenario(scn); }
-    playing=true; setPlayLabel(); enter(cur<0?0:cur, true);
+    FX.unlock();
+    if(playing){ playing=false; setPlayLabel(); clearTimer(); cancel(); if(cur>=0) enter(cur,false); return; }
+    FX.click(); if(cur>=scn.steps.length-1){ buildSteps(); cur=-1; } playing=true; setPlayLabel(); enter(cur<0?0:cur,true);
   });
   btnPrev.addEventListener("click",function(){ playing=false; setPlayLabel(); enter(Math.max(0,cur-1),false); });
-  btnNext.addEventListener("click",function(){ playing=false; setPlayLabel(); if(cur>=scn.steps.length-1){ finish(); } else { enter(cur+1,false); } });
-  btnReset.addEventListener("click",function(){ loadScenario(scn); });
-  document.querySelectorAll(".spd").forEach(function(b){
-    b.addEventListener("click",function(){
-      document.querySelectorAll(".spd").forEach(function(x){x.classList.remove("active");});
-      b.classList.add("active"); speed=parseFloat(b.dataset.s);
-    });
-  });
+  btnNext.addEventListener("click",function(){ playing=false; setPlayLabel(); if(cur>=scn.steps.length-1) finish(); else enter(cur+1,false); });
+  btnReset.addEventListener("click",function(){ FX.tick(); loadScenario(scn); });
+  document.querySelectorAll(".spd").forEach(function(b){ b.addEventListener("click",function(){ document.querySelectorAll(".spd").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); speed=parseFloat(b.dataset.s); }); });
 
   loadScenario(SCEN[0]);
 })();
