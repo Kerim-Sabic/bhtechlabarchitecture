@@ -894,12 +894,12 @@ svg.focused .aedge:not(.lit),svg.focused .aarrow:not(.lit){opacity:.05}
       <div class="q-chips" id="qChips"></div>
       <div class="askbox"><div class="q-show" id="qShow"><span style="color:var(--faint)">Pick a question above to load it&hellip;</span></div></div>
     </div>
-    <div class="sandbox-pipe" id="sbPipe"></div>
     <div class="sandbox-controls">
       <button class="ctrl-icon primary" id="sbRun" aria-label="Run the query pipeline">&#9654;&nbsp; Run pipeline</button>
       <button class="ctrl-icon" id="sbReset" style="font-size:11px;letter-spacing:.04em">RESET</button>
       <span class="stepcount" id="sbCount">step 0 / 6</span>
     </div>
+    <div class="sandbox-pipe" id="sbPipe"></div>
   </div>
 
   <div class="say"><div class="t">Say this in the meeting</div>
@@ -2627,9 +2627,10 @@ if(HAS_IO){
   });
   document.addEventListener("keydown",function(e){ if(e.key==="Escape" && modal.classList.contains("open")) closeModal(); });
 
+  function launchDemo(){ window.location.href="https://demobhtechlab.netlify.app"; }
   var lb=$("launchApp"), lh=$("launchAppHero");
-  if(lb) lb.addEventListener("click",open);
-  if(lh) lh.addEventListener("click",open);
+  if(lb) lb.addEventListener("click",launchDemo);
+  if(lh) lh.addEventListener("click",launchDemo);
 })();
 
 })();
