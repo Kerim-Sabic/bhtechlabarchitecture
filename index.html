@@ -197,7 +197,7 @@ h2.big{font-size:clamp(26px,4vw,38px);letter-spacing:-.015em;margin-bottom:14px}
   border:1px solid var(--line);border-radius:20px;padding:2px 9px}
 .nav-right{display:flex;align-items:center;gap:10px;margin-left:auto}
 .navbtn{font-family:'Archivo',sans-serif;font-weight:700;font-size:12px;letter-spacing:.02em;cursor:pointer;
-  border-radius:20px;padding:7px 14px;border:1px solid var(--line);background:#fff;color:var(--navy);transition:.16s}
+  display:inline-flex;align-items:center;text-decoration:none;border-radius:20px;padding:7px 14px;border:1px solid var(--line);background:#fff;color:var(--navy);transition:.16s}
 .navbtn:hover{border-color:var(--accentL)}
 .navbtn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
 .navbtn.primary:hover{background:#0a6b56}
@@ -567,7 +567,7 @@ svg.focused .aedge:not(.lit),svg.focused .aarrow:not(.lit){opacity:.05}
 .appmain .scr-head .grow{margin-left:auto}
 
 /* buttons */
-.btn2{font-family:'Archivo',sans-serif;font-weight:700;font-size:13px;border-radius:10px;padding:10px 16px;cursor:pointer;
+.btn2{font-family:'Archivo',sans-serif;font-weight:700;font-size:13px;border-radius:10px;padding:10px 16px;cursor:pointer;text-decoration:none;
   border:1px solid var(--line);background:#fff;color:var(--navy);transition:.15s;display:inline-flex;align-items:center;gap:8px}
 .btn2:hover{border-color:var(--accentL)}
 .btn2.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
@@ -728,7 +728,7 @@ svg.focused .aedge:not(.lit),svg.focused .aarrow:not(.lit){opacity:.05}
   <a href="#ai" class="spy">AI layer</a>
   <a href="#erp" class="spy">ERP</a>
   <div class="nav-right">
-    <button class="navbtn primary" id="launchApp">&#9654;&nbsp; Live demo app</button>
+    <a class="navbtn primary" id="launchApp" href="https://demobhtechlab.netlify.app/#/dashboard">&#9654;&nbsp; Live demo app</a>
     <button class="navbtn icon" id="soundTgl" aria-pressed="true" title="Sound &amp; haptics">&#128266;</button>
     <span class="navcount" id="navcount">offline-ready</span>
   </div>
@@ -739,7 +739,7 @@ svg.focused .aedge:not(.lit),svg.focused .aarrow:not(.lit){opacity:.05}
   <h1>How the platform <span class="em">actually works</span></h1>
   <p>An interactive walkthrough for engineers and evaluators &mdash; explore the live system map, play the offline sync, and follow a field scan all the way to an audited ERP record. Then <strong>open the working demo app</strong> and try it yourself.</p>
   <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:28px">
-    <button class="btn2 pri" id="launchAppHero" style="font-size:14.5px;padding:14px 24px;box-shadow:0 12px 30px rgba(12,122,99,.35)">&#9654;&nbsp; Launch the live demo app</button>
+    <a class="btn2 pri" id="launchAppHero" href="https://demobhtechlab.netlify.app/#/dashboard" style="font-size:14.5px;padding:14px 24px;box-shadow:0 12px 30px rgba(12,122,99,.35)">&#9654;&nbsp; Launch the live demo app</a>
     <a href="#layers" class="btn2" style="background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.22)">Explore the architecture &darr;</a>
   </div>
   <div class="stats">
@@ -2627,10 +2627,6 @@ if(HAS_IO){
   });
   document.addEventListener("keydown",function(e){ if(e.key==="Escape" && modal.classList.contains("open")) closeModal(); });
 
-  function launchDemo(){ window.location.href="https://demobhtechlab.netlify.app/#/dashboard"; }
-  var lb=$("launchApp"), lh=$("launchAppHero");
-  if(lb) lb.addEventListener("click",launchDemo);
-  if(lh) lh.addEventListener("click",launchDemo);
 })();
 
 })();
